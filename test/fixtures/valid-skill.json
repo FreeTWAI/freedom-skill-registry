@@ -1,0 +1,23 @@
+{
+  "schema_version": "freedom.skill/v1",
+  "id": "skill:example/lesson",
+  "name": "Lesson",
+  "version": "0.1.0-preview",
+  "source": {
+      "repository": "https://github.com/example/lesson",
+      "repository_id": "42",
+      "repository_is_fork": false,
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "manifest_path": "freedom-skill.yaml"
+  },
+  "summary": "A documentation-only starter.",
+  "requested_capabilities": ["documentation"],
+  "entrypoints": {"learn": "SKILL.md"},
+  "human_control": {
+      "principal_required": true,
+      "independent_review_same_agent_is_insufficient": true,
+      "a4_exact_digest_signature": true,
+      "never_store_chain_of_thought": true
+  },
+  "data_and_runtime": {"sends_data_to": [], "secrets_required": []}
+}
