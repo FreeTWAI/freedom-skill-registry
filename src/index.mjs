@@ -1,4 +1,7 @@
 const repositoryPattern = /^https:\/\/github\.com\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}\/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+const repositoryIdPattern = /^[1-9][0-9]{0,19}$/;
+const skillIdPattern = /^skill:[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/;
+const commitPattern = /^[a-f0-9]{40}$/;
 const relationships = new Set(['author', 'maintainer', 'contributor', 'curator']);
 
 function assertClient(client) {
@@ -26,7 +29,7 @@ export function projectManifestToImport(manifest, { relationship, consentToShare
   if (manifest.repository?.visibility !== 'public' || manifest.data_boundary?.classification !== 'public') throw new TypeError('Only explicitly public project metadata can be imported here');
   const repository = manifest.repository;
   if (!repositoryPattern.test(repository.html_url ?? '') || repository.html_url !== `https://github.com/${repository.full_name}`) throw new TypeError('Repository identity is inconsistent');
-  if (!/^[1-9][0-9]{0,19}$/.test(repository.repository_id ?? '')) throw new TypeError('A real GitHub repository ID is required');
+  if (!repositoryIdPattern.test(repository.repository_id ?? '')) throw new TypeError('A real GitHub repository ID is required');
   if (!relationships.has(relationship) || consentToShare !== true) throw new TypeError('An explicit relationship and sharing consent are required');
   if (typeof manifest.name !== 'string' || !manifest.name.trim() || manifest.name.length > 120 || typeof manifest.summary !== 'string' || !manifest.summary.trim() || manifest.summary.length > 240) throw new TypeError('Project name and summary are required');
   if (typeof useNotes !== 'string' || !useNotes.trim() || useNotes.trim().length > 3000) throw new TypeError('Use notes must be a non-empty string of at most 3000 characters');
@@ -43,11 +46,17 @@ export function projectManifestToImport(manifest, { relationship, consentToShare
 
 export function validateDeclarations(input) {
   if (input?.schema_version !== 'freedom.registry-declarations/v1' || !Array.isArray(input.packages)) throw new TypeError('Expected registry declarations');
-  if (Object.keys(input).some((key) => !['schema_version', 'packages'].includes(key))) throw new TypeError('Unknown declaration-list field');
+  for (const key in input) {
+    if (key !== 'schema_version' && key !== 'packages') throw new TypeError('Unknown declaration-list field');
+  }
   const seen = new Set();
   for (const entry of input.packages) {
-    if (!entry || !/^skill:[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/.test(entry.package_id ?? '') || !repositoryPattern.test(entry.repository_url ?? '') || !/^[a-f0-9]{40}$/.test(entry.commit ?? '')) throw new TypeError('Each declaration needs a package ID, public repository URL and full commit SHA');
-    if (Object.keys(entry).some((key) => !['package_id', 'repository_url', 'commit', 'manifest_path', 'intent'].includes(key))) throw new TypeError('Unknown declaration field; acceptance and trust come from Platform');
+    if (!entry || !skillIdPattern.test(entry.package_id ?? '') || !repositoryPattern.test(entry.repository_url ?? '') || !commitPattern.test(entry.commit ?? '')) throw new TypeError('Each declaration needs a package ID, public repository URL and full commit SHA');
+    for (const key in entry) {
+      if (key !== 'package_id' && key !== 'repository_url' && key !== 'commit' && key !== 'manifest_path' && key !== 'intent') {
+        throw new TypeError('Unknown declaration field; acceptance and trust come from Platform');
+      }
+    }
     if (seen.has(entry.package_id)) throw new TypeError('Duplicate package declaration');
     seen.add(entry.package_id);
     if (entry.manifest_path !== 'freedom-skill.yaml') throw new TypeError('The skill manifest must be the root freedom-skill.yaml');
